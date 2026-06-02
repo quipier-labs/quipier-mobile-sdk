@@ -1,0 +1,46 @@
+{
+  "name": "@quipier/react-native",
+  "version": "0.1.0",
+  "description": "Quipier comments for React Native / Expo — passport-based anonymous comments.",
+  "license": "MIT",
+  "main": "src/index.tsx",
+  "types": "src/index.tsx",
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "react-native": ">=0.74",
+    "react-native-webview": ">=13",
+    "@react-native-async-storage/async-storage": ">=1.23"
+  },
+  "peerDependenciesMeta": {
+    "@react-native-async-storage/async-storage": { "optional": true }
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/quipier-labs/quipier-mobile-sdk.git"
+  },
+  "keywords": [
+    "react-native",
+    "expo",
+    "comments",
+    "quipier",
+    "passport"
+  ]
+}
