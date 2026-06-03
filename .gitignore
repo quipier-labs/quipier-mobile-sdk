@@ -6,3 +6,8 @@ web-build/
 *.tsbuildinfo
 .DS_Store
 .env*.local
+
+.nvmrc
+next-env.d.ts
+.yalc/
+yalc.lock

@@ -11,7 +11,8 @@
     "LICENSE"
   ],
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "yalc:publish": "yalc publish --push"
   },
   "peerDependencies": {
     "react": ">=18",
@@ -20,10 +21,13 @@
     "@react-native-async-storage/async-storage": ">=1.23"
   },
   "peerDependenciesMeta": {
+    "react-native-webview": { "optional": true },
     "@react-native-async-storage/async-storage": { "optional": true }
   },
   "devDependencies": {
-    "@types/react": "^19.0.0",
+    "@types/react": "~18.3.0",
+    "react": "18.3.1",
+    "react-native": "0.76.9",
     "typescript": "^5.9.3"
   },
   "engines": {
