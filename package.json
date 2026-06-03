@@ -3,16 +3,38 @@
   "version": "0.1.0",
   "description": "Quipier comments for React Native / Expo — passport-based anonymous comments.",
   "license": "MIT",
-  "main": "src/index.tsx",
-  "types": "src/index.tsx",
+  "source": "./src/index.tsx",
+  "main": "./lib/commonjs/index.js",
+  "module": "./lib/module/index.js",
+  "types": "./lib/typescript/commonjs/index.d.ts",
+  "react-native": "./src/index.tsx",
+  "exports": {
+    ".": {
+      "source": "./src/index.tsx",
+      "react-native": "./src/index.tsx",
+      "import": {
+        "types": "./lib/typescript/module/index.d.ts",
+        "default": "./lib/module/index.js"
+      },
+      "require": {
+        "types": "./lib/typescript/commonjs/index.d.ts",
+        "default": "./lib/commonjs/index.js"
+      }
+    },
+    "./package.json": "./package.json"
+  },
   "files": [
     "src",
+    "lib",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "yalc:publish": "yalc publish --push"
+    "clean": "rm -rf lib",
+    "build": "bob build",
+    "prepublishOnly": "npm run clean && npm run build",
+    "yalc:publish": "npm run build && yalc publish --push"
   },
   "peerDependencies": {
     "react": ">=18",
@@ -28,10 +50,11 @@
     "@types/react": "~18.3.0",
     "react": "18.3.1",
     "react-native": "0.76.9",
+    "react-native-builder-bob": "^0.41.0",
     "typescript": "^5.9.3"
   },
   "engines": {
-    "node": ">=24"
+    "node": ">=18"
   },
   "publishConfig": {
     "access": "public"
@@ -40,11 +63,24 @@
     "type": "git",
     "url": "git+https://github.com/quipier-labs/quipier-mobile-sdk.git"
   },
+  "bugs": {
+    "url": "https://github.com/quipier-labs/quipier-mobile-sdk/issues"
+  },
+  "homepage": "https://docs.quipier.com",
   "keywords": [
     "react-native",
     "expo",
     "comments",
     "quipier",
     "passport"
-  ]
+  ],
+  "react-native-builder-bob": {
+    "source": "src",
+    "output": "lib",
+    "targets": [
+      ["commonjs", { "esm": true }],
+      ["module", { "esm": true }],
+      "typescript"
+    ]
+  }
 }
