@@ -11,6 +11,21 @@
 export { QuipierComments } from "./ui/QuipierComments";
 export type { QuipierCommentsProps } from "./ui/QuipierComments";
 
+// Customization API (mirrors @quipier/sdk)
+export type {
+  Appearance,
+  Features,
+  Slots,
+  SlotResult,
+  QuipierCommentView,
+  CommentCtx,
+  BaseCtx,
+  CommentActions,
+  SlotHelpers,
+  ResolvedTheme,
+  AvatarShape,
+} from "./core/customize";
+
 export { ApiError, createClient } from "./core/client";
 export type { Client, ClientConfig } from "./core/client";
 

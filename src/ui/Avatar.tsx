@@ -6,9 +6,11 @@ interface Props {
   seed: string;
   label: string | null;
   size?: number;
+  /** Corner radius. Defaults to a circle (size / 2). */
+  radius?: number;
 }
 
-export function Avatar({ seed, label, size = 32 }: Props) {
+export function Avatar({ seed, label, size = 32, radius }: Props) {
   const bg = colorForSeed(seed);
   const letter = avatarLetter(seed, label);
   return (
@@ -17,7 +19,7 @@ export function Avatar({ seed, label, size = 32 }: Props) {
       style={{
         width: size,
         height: size,
-        borderRadius: size / 2,
+        borderRadius: radius ?? size / 2,
         backgroundColor: bg,
         alignItems: "center",
         justifyContent: "center",

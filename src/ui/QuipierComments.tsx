@@ -1,5 +1,11 @@
 import * as React from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -16,6 +22,8 @@ import {
   DEFAULT_API_BASE,
   DEFAULT_PASSPORT_APP_ORIGIN,
 } from "../core/constants";
+import type { Appearance, BaseCtx, Features, Slots } from "../core/customize";
+import { hostSlot } from "../core/customize";
 import { buildTree, type CommentNode, type SortKey } from "../core/helpers";
 import {
   clearProjectSession,
@@ -27,10 +35,16 @@ import type { Comment, ReportReason } from "../core/types";
 import { CommentItem } from "./CommentItem";
 import { Composer } from "./Composer";
 import {
+  DEFAULT_FEATURES,
+  DEFAULT_HELPERS,
+  FeaturesContext,
+  SlotsContext,
+} from "./context";
+import {
   PassportWebViewModal,
   type PassportJoinResult,
 } from "./PassportWebViewModal";
-import { paletteFor, type ThemeMode } from "./theme";
+import { resolveTheme, type ThemeMode } from "./theme";
 
 export interface QuipierCommentsProps {
   apiKey: string;
@@ -44,6 +58,12 @@ export interface QuipierCommentsProps {
   maxDepth?: 1 | 2;
   sort?: SortKey;
   onComment?: (comment: Comment) => void;
+  /** Theme tokens (colors, font, radius, spacing, avatar shape). */
+  appearance?: Appearance;
+  /** Turn whole UI features on/off (sort, composer, likes, replies, …). */
+  features?: Features;
+  /** Per-part render overrides returning React nodes. */
+  slots?: Slots;
 }
 
 export function QuipierComments(props: QuipierCommentsProps) {
@@ -58,12 +78,34 @@ export function QuipierComments(props: QuipierCommentsProps) {
     maxDepth = 2,
     sort: initialSort = "top",
     onComment,
+    appearance,
+    features: featuresProp,
+    slots = {},
   } = props;
 
   const systemScheme = useColorScheme();
   const mode: ThemeMode =
     theme === "auto" ? (systemScheme === "dark" ? "dark" : "light") : theme;
-  const palette = useMemo(() => paletteFor(mode), [mode]);
+  const palette = useMemo(
+    () => resolveTheme(mode, appearance),
+    [mode, appearance],
+  );
+  const features = useMemo(
+    () => ({ ...DEFAULT_FEATURES, ...(featuresProp ?? {}) }),
+    [featuresProp],
+  );
+  // replies:false collapses threading to flat (same as maxDepth 1).
+  const effectiveMaxDepth = features.replies ? maxDepth : 1;
+  const slotEnv = useMemo(
+    () => ({ slots, helpers: DEFAULT_HELPERS }),
+    [slots],
+  );
+  /** BaseCtx for a non-comment slot (header/composer/empty). */
+  const baseCtx = (defaultNode: ReactNode): BaseCtx => ({
+    defaultNode: () => defaultNode,
+    theme: palette,
+    helpers: DEFAULT_HELPERS,
+  });
 
   const [session, setSession] = useState<ProjectSession | null>(null);
   const [sessionLoaded, setSessionLoaded] = useState(false);
@@ -342,19 +384,26 @@ export function QuipierComments(props: QuipierCommentsProps) {
     ? { tokenId: session.projectTokenId, nickname: session.nickname }
     : null;
 
-  const Header = (
-    <View style={{ gap: 0 }}>
-      <View
+  const headerRow = (
+    <View
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        paddingVertical: 8,
+      }}
+    >
+      <Text
         style={{
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
-          paddingVertical: 8,
+          color: palette.text,
+          fontWeight: "700",
+          fontSize: 15,
+          fontFamily: palette.fontFamily,
         }}
       >
-        <Text style={{ color: palette.text, fontWeight: "700", fontSize: 15 }}>
-          댓글 {visibleCount}개
-        </Text>
+        댓글 {visibleCount}개
+      </Text>
+      {features.sort ? (
         <Pressable
           onPress={openSortMenu}
           hitSlop={8}
@@ -365,18 +414,37 @@ export function QuipierComments(props: QuipierCommentsProps) {
             gap: 4,
           })}
         >
-          <Text style={{ color: palette.textMuted, fontSize: 12, fontWeight: "600" }}>
+          <Text
+            style={{
+              color: palette.textMuted,
+              fontSize: 12,
+              fontWeight: "600",
+              fontFamily: palette.fontFamily,
+            }}
+          >
             {sort === "top" ? "인기순" : "최신순"} ▾
           </Text>
         </Pressable>
-      </View>
-      <Composer
-        palette={palette}
-        session={composerSession}
-        onSubmit={handleCreate}
-        onConnectRequest={openJoin}
-        onDisconnect={disconnect}
-      />
+      ) : null}
+    </View>
+  );
+
+  const composerEl = (
+    <Composer
+      palette={palette}
+      session={composerSession}
+      onSubmit={handleCreate}
+      onConnectRequest={openJoin}
+      onDisconnect={disconnect}
+    />
+  );
+
+  const Header = (
+    <View style={{ gap: 0 }}>
+      {hostSlot(slots.header?.(baseCtx(headerRow)), headerRow)}
+      {features.composer
+        ? hostSlot(slots.composer?.(baseCtx(composerEl)), composerEl)
+        : null}
       {error ? (
         <Text
           style={{
@@ -400,84 +468,97 @@ export function QuipierComments(props: QuipierCommentsProps) {
             opacity: pressed ? 0.6 : 1,
             paddingVertical: 8,
             paddingHorizontal: 14,
-            borderRadius: 18,
+            borderRadius: palette.pillRadius,
             borderWidth: 1,
             borderColor: palette.border,
           })}
         >
-          <Text style={{ color: palette.text, fontWeight: "600", fontSize: 13 }}>
+          <Text
+            style={{ color: palette.text, fontWeight: "600", fontSize: 13, fontFamily: palette.fontFamily }}
+          >
             더 보기
           </Text>
         </Pressable>
       ) : null}
-      <Pressable
-        onPress={() =>
-          void Linking.openURL("https://quipier.com").catch(() => undefined)
-        }
-        style={{
-          marginTop: 12,
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 6,
-        }}
-      >
-        <Text style={{ color: palette.textMuted, fontSize: 11 }}>
-          powered by Quipier
-        </Text>
-      </Pressable>
+      {features.badge ? (
+        <Pressable
+          onPress={() =>
+            void Linking.openURL("https://quipier.com").catch(() => undefined)
+          }
+          style={{
+            marginTop: 12,
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
+          <Text style={{ color: palette.textMuted, fontSize: 11 }}>
+            powered by Quipier
+          </Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 
+  const emptyEl = (
+    <Text
+      style={{
+        color: palette.textMuted,
+        textAlign: "center",
+        paddingVertical: 24,
+        fontSize: 13,
+        fontFamily: palette.fontFamily,
+      }}
+    >
+      아직 댓글이 없어요. 가장 먼저 남겨보세요.
+    </Text>
+  );
+
   return (
-    <View style={{ flex: 1, backgroundColor: palette.bg }}>
-      <FlatList
-        data={tree}
-        keyExtractor={(n) => n.comment.id}
-        ListHeaderComponent={Header}
-        ListFooterComponent={Footer}
-        contentContainerStyle={{ paddingHorizontal: 16 }}
-        ListEmptyComponent={
-          loading || !sessionLoaded ? (
-            <View style={{ paddingVertical: 24, alignItems: "center" }}>
-              <ActivityIndicator color={palette.accent} />
-            </View>
-          ) : (
-            <Text
-              style={{
-                color: palette.textMuted,
-                textAlign: "center",
-                paddingVertical: 24,
-                fontSize: 13,
-              }}
-            >
-              아직 댓글이 없어요. 가장 먼저 남겨보세요.
-            </Text>
-          )
-        }
-        renderItem={({ item }) => (
-          <CommentItem
-            palette={palette}
-            node={item}
-            ownAuthorId={session?.projectTokenId ?? null}
-            onToggleLike={toggleLike}
-            onDelete={handleDelete}
-            onEdit={handleEdit}
-            onReply={handleReply}
-            onReport={handleReport}
-            canReply={!!session}
-            dateFormat={dateFormat}
-            maxDepth={maxDepth}
+    <FeaturesContext.Provider value={features}>
+      <SlotsContext.Provider value={slotEnv}>
+        <View style={{ flex: 1, backgroundColor: palette.bg }}>
+          <FlatList
+            data={tree}
+            keyExtractor={(n) => n.comment.id}
+            ListHeaderComponent={Header}
+            ListFooterComponent={Footer}
+            contentContainerStyle={{ paddingHorizontal: 16 }}
+            ListEmptyComponent={
+              loading || !sessionLoaded ? (
+                <View style={{ paddingVertical: 24, alignItems: "center" }}>
+                  <ActivityIndicator color={palette.accent} />
+                </View>
+              ) : (
+                <>{hostSlot(slots.empty?.(baseCtx(emptyEl)), emptyEl)}</>
+              )
+            }
+            renderItem={({ item }) => (
+              <CommentItem
+                palette={palette}
+                node={item}
+                ownAuthorId={session?.projectTokenId ?? null}
+                onToggleLike={toggleLike}
+                onDelete={handleDelete}
+                onEdit={handleEdit}
+                onReply={handleReply}
+                onReport={handleReport}
+                canReply={!!session}
+                dateFormat={dateFormat}
+                maxDepth={effectiveMaxDepth}
+              />
+            )}
           />
-        )}
-      />
-      <PassportWebViewModal
-        palette={palette}
-        visible={joinOpen}
-        projectId={projectId}
-        passportAppOrigin={passportAppOrigin}
-        onClose={() => setJoinOpen(false)}
-        onResult={handlePassportResult}
-      />
-    </View>
+          <PassportWebViewModal
+            palette={palette}
+            visible={joinOpen}
+            projectId={projectId}
+            passportAppOrigin={passportAppOrigin}
+            onClose={() => setJoinOpen(false)}
+            onResult={handlePassportResult}
+          />
+        </View>
+      </SlotsContext.Provider>
+    </FeaturesContext.Provider>
   );
 }

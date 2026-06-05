@@ -1,11 +1,14 @@
 import * as React from "react";
-import { useState } from "react";
+import { type ReactNode, useContext, useState } from "react";
 import { Alert, Pressable, Text, View } from "react-native";
 import type { ReportReason } from "../core/types";
+import type { CommentActions, CommentCtx } from "../core/customize";
+import { hostSlot, toCommentView } from "../core/customize";
 import { type CommentNode, formatTime } from "../core/helpers";
 import { Avatar } from "./Avatar";
 import { CommentForm } from "./CommentForm";
-import type { ThemePalette } from "./theme";
+import { FeaturesContext, SlotsContext } from "./context";
+import { avatarBorderRadius, type ThemePalette } from "./theme";
 
 interface Props {
   palette: ThemePalette;
@@ -48,6 +51,8 @@ export function CommentItem({
   depth = 0,
   rootId,
 }: Props) {
+  const features = useContext(FeaturesContext);
+  const { slots, helpers } = useContext(SlotsContext);
   const { comment, children } = node;
   const repliesEnabled = maxDepth >= 2;
   const [replying, setReplying] = useState(false);
@@ -61,6 +66,7 @@ export function CommentItem({
   const likesCount = comment.likes_count;
   const avatarSize = depth === 0 ? 32 : 24;
   const effectiveRootId = rootId ?? comment.id;
+  const font = palette.fontFamily;
 
   const deletedNotice =
     comment.deleted_by_type === "operator"
@@ -115,14 +121,47 @@ export function CommentItem({
     Alert.alert("신고 사유", "왜 이 댓글을 신고하나요?", buttons as never);
   }
 
-  const visibleChildren = expanded ? children.slice(0, shownCount) : [];
-  const remaining = children.length - shownCount;
-  const hasMore = expanded && remaining > 0;
+  // ── customization plumbing ──
+  const view = toCommentView(comment, ownAuthorId, children.length);
+  const actions: CommentActions = {
+    like: () => {
+      if (!comment.liked_by_me) onToggleLike(comment.id);
+    },
+    unlike: () => {
+      if (comment.liked_by_me) onToggleLike(comment.id);
+    },
+    reply: (content: string) => onReply(effectiveRootId, content),
+    edit: (content: string) => onEdit(comment.id, content),
+    remove: () => onDelete(comment.id),
+    report: (reason: ReportReason) => onReport(comment.id, reason),
+  };
+  const ctx: CommentCtx = {
+    defaultNode: () => renderRow(),
+    theme: palette,
+    helpers,
+    actions,
+    isOwn,
+  };
 
-  return (
-    <View style={{ marginTop: depth === 0 ? 16 : 12 }}>
+  const showMenu =
+    features.menu && !comment.is_deleted && !isHidden && (isOwn || features.report);
+
+  /** The default single-comment row (avatar + body). Partial slots wrap pieces
+   *  inside it; the `comment` slot can replace the whole thing. */
+  function renderRow(): ReactNode {
+    return (
       <View style={{ flexDirection: "row", gap: 10 }}>
-        <Avatar seed={comment.author_id} label={comment.nickname} size={avatarSize} />
+        {features.avatars
+          ? hostSlot(
+              slots.avatar?.(view, ctx),
+              <Avatar
+                seed={comment.author_id}
+                label={comment.nickname}
+                size={avatarSize}
+                radius={avatarBorderRadius(avatarSize, palette.avatarShape)}
+              />,
+            )
+          : null}
         <View style={{ flex: 1 }}>
           <View
             style={{
@@ -132,9 +171,14 @@ export function CommentItem({
               gap: 6,
             }}
           >
-            <Text style={{ color: palette.text, fontWeight: "700", fontSize: 13 }}>
-              {display}
-            </Text>
+            {hostSlot(
+              slots.authorLabel?.(view, ctx),
+              <Text
+                style={{ color: palette.text, fontWeight: "700", fontSize: 13, fontFamily: font }}
+              >
+                {display}
+              </Text>,
+            )}
             {comment.author_blocked ? (
               <View
                 style={{
@@ -150,10 +194,10 @@ export function CommentItem({
               </View>
             ) : null}
             <Text style={{ color: palette.textMuted, fontSize: 12 }}>·</Text>
-            <Text style={{ color: palette.textMuted, fontSize: 12 }}>
+            <Text style={{ color: palette.textMuted, fontSize: 12, fontFamily: font }}>
               {formatTime(comment.created_at, dateFormat)}
             </Text>
-            {!comment.is_deleted && !isHidden ? (
+            {showMenu ? (
               <Pressable
                 onPress={openMenu}
                 hitSlop={10}
@@ -184,6 +228,7 @@ export function CommentItem({
                 fontStyle: "italic",
                 marginTop: 4,
                 fontSize: 13,
+                fontFamily: font,
               }}
             >
               {deletedNotice}
@@ -199,7 +244,7 @@ export function CommentItem({
                     backgroundColor: palette.surface,
                     paddingHorizontal: 8,
                     paddingVertical: 6,
-                    borderRadius: 6,
+                    borderRadius: palette.radius,
                   }}
                 >
                   <Text style={{ color: palette.textMuted, fontSize: 12, flex: 1 }}>
@@ -213,7 +258,7 @@ export function CommentItem({
                     </Text>
                   </Pressable>
                 </View>
-                <Text style={{ color: palette.text, fontSize: 14, lineHeight: 20 }}>
+                <Text style={{ color: palette.text, fontSize: 14, lineHeight: 20, fontFamily: font }}>
                   {comment.content}
                 </Text>
               </View>
@@ -227,7 +272,7 @@ export function CommentItem({
                   backgroundColor: palette.surface,
                   paddingHorizontal: 8,
                   paddingVertical: 6,
-                  borderRadius: 6,
+                  borderRadius: palette.radius,
                 }}
               >
                 <Text
@@ -250,72 +295,72 @@ export function CommentItem({
               </View>
             )
           ) : (
-            <Text
-              style={{
-                color: palette.text,
-                fontSize: 14,
-                lineHeight: 20,
-                marginTop: 2,
-              }}
-            >
-              {comment.content}
-            </Text>
+            hostSlot(
+              slots.content?.(view, ctx),
+              <Text
+                style={{
+                  color: palette.text,
+                  fontSize: palette.fontSize,
+                  lineHeight: Math.round(palette.fontSize * 1.43),
+                  marginTop: 2,
+                  fontFamily: font,
+                }}
+              >
+                {comment.content}
+              </Text>,
+            )
           )}
 
-          {!comment.is_deleted && !isHidden && !editing ? (
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 16,
-                marginTop: 6,
-              }}
-            >
-              <Pressable
-                onPress={() => onToggleLike(comment.id)}
-                hitSlop={6}
-                accessibilityRole="button"
-                accessibilityLabel={liked ? "좋아요 취소" : "좋아요"}
-                style={{ flexDirection: "row", alignItems: "center", gap: 4 }}
-              >
-                <Text
+          {!comment.is_deleted && !isHidden && !editing
+            ? hostSlot(
+                slots.actions?.(view, ctx),
+                <View
                   style={{
-                    color: liked ? palette.like : palette.textMuted,
-                    fontSize: 14,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 16,
+                    marginTop: 6,
                   }}
                 >
-                  {liked ? "♥" : "♡"}
-                </Text>
-                <Text
-                  style={{
-                    color: liked ? palette.like : palette.textMuted,
-                    fontSize: 12,
-                    fontWeight: "600",
-                  }}
-                >
-                  {likesCount}
-                </Text>
-              </Pressable>
-              {canReply && repliesEnabled ? (
-                <Pressable
-                  onPress={() => setReplying((v) => !v)}
-                  hitSlop={6}
-                  accessibilityRole="button"
-                  accessibilityLabel="답글"
-                >
-                  <Text
-                    style={{
-                      color: palette.textMuted,
-                      fontSize: 12,
-                      fontWeight: "600",
-                    }}
-                  >
-                    답글
-                  </Text>
-                </Pressable>
-              ) : null}
-            </View>
-          ) : null}
+                  {features.likes ? (
+                    <Pressable
+                      onPress={() => onToggleLike(comment.id)}
+                      hitSlop={6}
+                      accessibilityRole="button"
+                      accessibilityLabel={liked ? "좋아요 취소" : "좋아요"}
+                      style={{ flexDirection: "row", alignItems: "center", gap: 4 }}
+                    >
+                      <Text style={{ color: liked ? palette.like : palette.textMuted, fontSize: 14 }}>
+                        {liked ? "♥" : "♡"}
+                      </Text>
+                      <Text
+                        style={{
+                          color: liked ? palette.like : palette.textMuted,
+                          fontSize: 12,
+                          fontWeight: "600",
+                        }}
+                      >
+                        {likesCount}
+                      </Text>
+                    </Pressable>
+                  ) : null}
+                  {canReply && repliesEnabled ? (
+                    <Pressable
+                      onPress={() => setReplying((v) => !v)}
+                      hitSlop={6}
+                      accessibilityRole="button"
+                      accessibilityLabel="답글"
+                    >
+                      <Text
+                        style={{ color: palette.textMuted, fontSize: 12, fontWeight: "600" }}
+                      >
+                        답글
+                      </Text>
+                    </Pressable>
+                  ) : null}
+                </View>,
+              )
+            : null}
 
           {replying ? (
             <CommentForm
@@ -329,6 +374,16 @@ export function CommentItem({
           ) : null}
         </View>
       </View>
+    );
+  }
+
+  const visibleChildren = expanded ? children.slice(0, shownCount) : [];
+  const remaining = children.length - shownCount;
+  const hasMore = expanded && remaining > 0;
+
+  return (
+    <View style={{ marginTop: depth === 0 ? palette.gap : 12 }}>
+      {hostSlot(slots.comment?.(view, ctx), renderRow())}
 
       {repliesEnabled && children.length > 0 ? (
         <View style={{ marginTop: 4, marginLeft: avatarSize + 10 }}>
@@ -367,9 +422,7 @@ export function CommentItem({
                   onPress={() => setShownCount((c) => c + REPLY_BATCH)}
                   style={{ paddingVertical: 6 }}
                 >
-                  <Text
-                    style={{ color: palette.accent, fontSize: 12, fontWeight: "700" }}
-                  >
+                  <Text style={{ color: palette.accent, fontSize: 12, fontWeight: "700" }}>
                     답글 {Math.min(REPLY_BATCH, remaining)}개 더 보기
                   </Text>
                 </Pressable>

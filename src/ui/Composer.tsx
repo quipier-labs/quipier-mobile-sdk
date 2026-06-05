@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useState } from "react";
+import { useContext, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -9,7 +9,8 @@ import {
 } from "react-native";
 import { LIMITS } from "../core/constants";
 import { Avatar } from "./Avatar";
-import type { ThemePalette } from "./theme";
+import { FeaturesContext } from "./context";
+import { avatarBorderRadius, type ThemePalette } from "./theme";
 
 interface Props {
   palette: ThemePalette;
@@ -28,6 +29,7 @@ export function Composer({
   onDisconnect,
   placeholder = "댓글 추가...",
 }: Props) {
+  const features = useContext(FeaturesContext);
   const [value, setValue] = useState("");
   const [focused, setFocused] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -86,15 +88,22 @@ export function Composer({
       }}
     >
       <View style={{ flexDirection: "row", gap: 10, alignItems: "flex-start" }}>
-        <Pressable
-          onPress={() => session && onDisconnect()}
-          accessibilityRole="button"
-          accessibilityLabel={
-            session ? `${session.nickname} 패스포트 연결 해제` : "패스포트 연결"
-          }
-        >
-          <Avatar seed={seed} label={label} size={32} />
-        </Pressable>
+        {features.avatars ? (
+          <Pressable
+            onPress={() => session && onDisconnect()}
+            accessibilityRole="button"
+            accessibilityLabel={
+              session ? `${session.nickname} 패스포트 연결 해제` : "패스포트 연결"
+            }
+          >
+            <Avatar
+              seed={seed}
+              label={label}
+              size={32}
+              radius={avatarBorderRadius(32, palette.avatarShape)}
+            />
+          </Pressable>
+        ) : null}
         <View style={{ flex: 1 }}>
           <TextInput
             value={value}
@@ -111,6 +120,7 @@ export function Composer({
             style={{
               color: palette.text,
               fontSize: 14,
+              fontFamily: palette.fontFamily,
               minHeight: expanded ? 56 : 32,
               paddingVertical: 4,
               borderBottomWidth: 1,
@@ -139,10 +149,12 @@ export function Composer({
               opacity: pressed ? 0.6 : 1,
               paddingHorizontal: 12,
               paddingVertical: 8,
-              borderRadius: 18,
+              borderRadius: palette.pillRadius,
             })}
           >
-            <Text style={{ color: palette.textMuted, fontWeight: "600" }}>
+            <Text
+              style={{ color: palette.textMuted, fontWeight: "600", fontFamily: palette.fontFamily }}
+            >
               취소
             </Text>
           </Pressable>
@@ -159,7 +171,7 @@ export function Composer({
               backgroundColor: palette.accent,
               paddingHorizontal: 14,
               paddingVertical: 8,
-              borderRadius: 18,
+              borderRadius: palette.pillRadius,
               flexDirection: "row",
               alignItems: "center",
               gap: 6,
@@ -168,7 +180,9 @@ export function Composer({
             {submitting ? (
               <ActivityIndicator size="small" color={palette.accentText} />
             ) : null}
-            <Text style={{ color: palette.accentText, fontWeight: "700" }}>
+            <Text
+              style={{ color: palette.accentText, fontWeight: "700", fontFamily: palette.fontFamily }}
+            >
               {submitting ? "Posting…" : "Post"}
             </Text>
           </Pressable>

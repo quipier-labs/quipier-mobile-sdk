@@ -53,6 +53,7 @@ export function CommentForm({
         style={{
           color: palette.text,
           fontSize: 14,
+          fontFamily: palette.fontFamily,
           minHeight: 48,
           paddingVertical: 4,
           borderBottomWidth: 1,
@@ -89,7 +90,7 @@ export function CommentForm({
             backgroundColor: palette.accent,
             paddingHorizontal: 12,
             paddingVertical: 6,
-            borderRadius: 16,
+            borderRadius: palette.pillRadius,
             flexDirection: "row",
             alignItems: "center",
             gap: 6,
@@ -98,7 +99,9 @@ export function CommentForm({
           {submitting ? (
             <ActivityIndicator size="small" color={palette.accentText} />
           ) : null}
-          <Text style={{ color: palette.accentText, fontWeight: "700" }}>
+          <Text
+            style={{ color: palette.accentText, fontWeight: "700", fontFamily: palette.fontFamily }}
+          >
             {submitLabel}
           </Text>
         </Pressable>
