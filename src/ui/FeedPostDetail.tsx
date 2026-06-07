@@ -4,7 +4,9 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Platform,
   Pressable,
+  Share,
   Text,
   View,
 } from "react-native";
@@ -49,6 +51,8 @@ interface Props {
   onReport: (id: string, reason: ReportReason) => void;
   onEdit: (id: string, content: string) => Promise<void>;
   onReplyAdded: () => void;
+  /** Canonical URL to share for this post. Null/undefined → hide share button. */
+  shareUrl?: string | null;
 }
 
 /** Post detail / thread: the post in full, a reply composer, and the replies. */
@@ -67,6 +71,7 @@ export function FeedPostDetail({
   onReport,
   onEdit,
   onReplyAdded,
+  shareUrl,
 }: Props) {
   const features = useContext(FeaturesContext);
   const [replies, setReplies] = useState<Post[]>([]);
@@ -112,6 +117,21 @@ export function FeedPostDetail({
   async function submitEdit(text: string) {
     await onEdit(post.id, text);
     setEditing(false);
+  }
+
+  async function doShare() {
+    if (!shareUrl) return;
+    const text = post.content?.trim();
+    try {
+      if (Platform.OS === "ios") {
+        await Share.share(text ? { url: shareUrl, message: text } : { url: shareUrl });
+      } else {
+        // Android ignores `url` — fold the link into the message.
+        await Share.share({ message: text ? `${text}\n${shareUrl}` : shareUrl });
+      }
+    } catch {
+      // dismissed or unavailable — ignore
+    }
   }
 
   function openMenu() {
@@ -250,28 +270,44 @@ export function FeedPostDetail({
             <FeedImage uri={post.image_url} palette={palette} variant="full" />
           ) : null}
 
-          {!deleted && !editing && features.likes ? (
-            <View style={{ flexDirection: "row", alignItems: "center", marginTop: 10 }}>
-              <Pressable
-                onPress={() => onToggleLike(post.id)}
-                hitSlop={6}
-                accessibilityRole="button"
-                accessibilityLabel={liked ? "좋아요 취소" : "좋아요"}
-                style={{ flexDirection: "row", alignItems: "center", gap: 4 }}
-              >
-                <Text style={{ color: liked ? palette.like : palette.textMuted, fontSize: 16 }}>
-                  {liked ? "♥" : "♡"}
-                </Text>
-                <Text
-                  style={{
-                    color: liked ? palette.like : palette.textMuted,
-                    fontSize: 13,
-                    fontWeight: "600",
-                  }}
+          {!deleted && !editing && (features.likes || shareUrl) ? (
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 22, marginTop: 10 }}>
+              {features.likes ? (
+                <Pressable
+                  onPress={() => onToggleLike(post.id)}
+                  hitSlop={6}
+                  accessibilityRole="button"
+                  accessibilityLabel={liked ? "좋아요 취소" : "좋아요"}
+                  style={{ flexDirection: "row", alignItems: "center", gap: 4 }}
                 >
-                  {post.likes_count}
-                </Text>
-              </Pressable>
+                  <Text style={{ color: liked ? palette.like : palette.textMuted, fontSize: 16 }}>
+                    {liked ? "♥" : "♡"}
+                  </Text>
+                  <Text
+                    style={{
+                      color: liked ? palette.like : palette.textMuted,
+                      fontSize: 13,
+                      fontWeight: "600",
+                    }}
+                  >
+                    {post.likes_count}
+                  </Text>
+                </Pressable>
+              ) : null}
+              {shareUrl ? (
+                <Pressable
+                  onPress={doShare}
+                  hitSlop={6}
+                  accessibilityRole="button"
+                  accessibilityLabel="공유"
+                  style={{ flexDirection: "row", alignItems: "center", gap: 4 }}
+                >
+                  <Text style={{ color: palette.textMuted, fontSize: 14 }}>🔗</Text>
+                  <Text style={{ color: palette.textMuted, fontSize: 13, fontWeight: "600" }}>
+                    공유
+                  </Text>
+                </Pressable>
+              ) : null}
             </View>
           ) : null}
         </View>

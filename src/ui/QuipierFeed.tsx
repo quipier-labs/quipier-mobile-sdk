@@ -48,6 +48,11 @@ export interface QuipierFeedProps {
    *  cancelled). When provided, the composer shows an image-attach button.
    *  Kept pluggable so the SDK never hard-depends on a native picker library. */
   imagePicker?: () => Promise<string | null>;
+  /** Share-button link target (native apps have no canonical URL). A base URL →
+   *  `${base}?qp_post=<id>`, or a function for full control. Omit → no share
+   *  button. Point it at your web feed page (`?qp_post` opens that post) or your
+   *  app's universal link. */
+  shareUrl?: string | ((post: Post) => string);
 }
 
 /** Project-global feed (Feed module): users write posts, reply, and like.
@@ -64,7 +69,18 @@ export function QuipierFeed(props: QuipierFeedProps) {
     appearance,
     features: featuresProp,
     imagePicker,
+    shareUrl,
   } = props;
+
+  /** Canonical share URL for a post, or null when no target is configured. */
+  function getShareUrl(post: Post): string | null {
+    if (typeof shareUrl === "function") return shareUrl(post);
+    if (typeof shareUrl === "string") {
+      const sep = shareUrl.includes("?") ? "&" : "?";
+      return `${shareUrl}${sep}qp_post=${encodeURIComponent(post.id)}`;
+    }
+    return null;
+  }
 
   const systemScheme = useColorScheme();
   const mode: ThemeMode =
@@ -383,6 +399,7 @@ export function QuipierFeed(props: QuipierFeedProps) {
             onReport={handleReport}
             onEdit={handleEdit}
             onReplyAdded={handleReplyAdded}
+            shareUrl={getShareUrl(openPost)}
           />
         ) : (
           <FlatList
