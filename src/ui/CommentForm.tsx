@@ -9,6 +9,9 @@ interface Props {
   placeholder: string;
   submitLabel: string;
   initialValue?: string;
+  /** Focus the field on mount. Default true (reply/edit forms). Pass false for
+   *  a persistent composer so entering a view doesn't pop the keyboard. */
+  autoFocus?: boolean;
   onCancel: () => void;
   onSubmit: (content: string) => Promise<void>;
 }
@@ -18,6 +21,7 @@ export function CommentForm({
   placeholder,
   submitLabel,
   initialValue = "",
+  autoFocus = true,
   onCancel,
   onSubmit,
 }: Props) {
@@ -32,6 +36,7 @@ export function CommentForm({
     setError(null);
     try {
       await onSubmit(content);
+      setValue(""); // clear so persistent composers (thread reply box) reset
     } catch (err) {
       setError(err instanceof Error ? err.message : "failed");
     } finally {
@@ -39,10 +44,16 @@ export function CommentForm({
     }
   }
 
+  function handleCancel() {
+    setValue("");
+    setError(null);
+    onCancel();
+  }
+
   return (
     <View style={{ gap: 6, marginTop: 6 }}>
       <TextInput
-        autoFocus
+        autoFocus={autoFocus}
         value={value}
         onChangeText={setValue}
         placeholder={placeholder}
@@ -65,7 +76,7 @@ export function CommentForm({
       ) : null}
       <View style={{ flexDirection: "row", justifyContent: "flex-end", gap: 8 }}>
         <Pressable
-          onPress={onCancel}
+          onPress={handleCancel}
           disabled={submitting}
           style={({ pressed }) => ({
             opacity: pressed ? 0.6 : 1,

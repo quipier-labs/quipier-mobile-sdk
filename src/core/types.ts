@@ -35,3 +35,42 @@ export interface ListCommentsResponse {
 }
 
 export type ReportReason = "spam" | "harassment" | "adult" | "privacy" | "other";
+
+// ── Feed module (posts) — mirrors quipier.js/src/types.ts Post shape. ──
+
+export interface Post {
+  id: string;
+  project_id: string;
+  /** Public per-project author id (project_token_id). */
+  author_id: string;
+  nickname: string | null;
+  content: string;
+  /** null = top-level post; set = reply to that post. */
+  parent_id: string | null;
+  is_deleted: boolean;
+  deleted_by_type?: "passport" | "operator" | null;
+  trashed_at?: string | null;
+  purged_at?: string | null;
+  is_hidden?: boolean;
+  author_blocked?: boolean;
+  created_at: string;
+  likes_count: number;
+  liked_by_me: boolean;
+  /** Denormalized count of visible replies (for "답글 N"). */
+  reply_count: number;
+  /** Absolute URL of an attached image, or null. */
+  image_url?: string | null;
+}
+
+export interface CreatePostBody {
+  project_id: string;
+  content: string;
+  parent_id?: string;
+  /** base64 data URL (`data:image/...`). The widget pre-compresses to fit. */
+  image?: string | null;
+}
+
+export interface ListPostsResponse {
+  posts: Post[];
+  next_cursor: string | null;
+}
